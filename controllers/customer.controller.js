@@ -128,3 +128,19 @@ exports.editCustomer = async (req, res) => {
     });
   }
 };
+
+exports.delCustomer = async (req, res) => {
+  const { id } = req.body;
+  try {
+    let sql = "DELETE FROM members WHERE id = ?";
+
+    await db.query(sql, [id]);
+    res.status(200).json({ status: true, msg: "ลบข้อมูลลูกค้าสำเร็จ" });
+  } catch (error) {
+    console.log(error);
+    res.status(500).json({
+      status: false,
+      message: "เกิดข้อผิดพลาดบางอย่าง โปรดลองใหม่ภายหลัง",
+    });
+  }
+};
