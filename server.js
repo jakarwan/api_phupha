@@ -12,7 +12,7 @@ app.use(express.json());
 
 // เปิดเฉพาะ origin
 // app.use(cors({ origin: "http://localhost:5173" }));
-app.use(cors({ origin: "https://api.phupha-help.com" }));
+app.use(cors({ origin: "https://phupha-help.com" }));
 
 // Routes
 app.use("/api/auth", authRoutes);
