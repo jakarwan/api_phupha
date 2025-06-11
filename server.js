@@ -16,15 +16,15 @@ app.use(express.urlencoded({ extended: true }));
 // app.use(cors())
 
 // เปิดเฉพาะ origin
-app.use(cors({ origin: "http://localhost:5173" }));
-// app.use(
-//   cors({
-//     origin: ["https://phupha-help.com", "https://www.phupha-help.com"], // ✅ ใส่โดเมนหลักของ frontend ที่เรียกใช้ API
-//     credentials: true, // ✅ ถ้าคุณใช้ cookie, auth header (เช่น JWT Bearer)
-//     methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"], // ✅ จำกัดเฉพาะ method ที่ใช้
-//     allowedHeaders: ["Content-Type", "Authorization"], // ✅ เฉพาะ headers ที่จำเป็น
-//   })
-// );
+// app.use(cors({ origin: "http://localhost:5173" }));
+app.use(
+  cors({
+    origin: ["https://phupha-help.com", "https://www.phupha-help.com"], // ✅ ใส่โดเมนหลักของ frontend ที่เรียกใช้ API
+    credentials: true, // ✅ ถ้าคุณใช้ cookie, auth header (เช่น JWT Bearer)
+    methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"], // ✅ จำกัดเฉพาะ method ที่ใช้
+    allowedHeaders: ["Content-Type", "Authorization"], // ✅ เฉพาะ headers ที่จำเป็น
+  })
+);
 
 // Routes
 app.use("/api/auth", authRoutes);
