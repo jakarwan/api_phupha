@@ -7,6 +7,7 @@ const addressRoutes = require("./routes/address.routes");
 const productRoutes = require("./routes/product.routes");
 const typeRoutes = require("./routes/type.routes");
 const orderRoutes = require("./routes/order.routes");
+const dashboardRoutes = require("./routes/dashboard.routes");
 const path = require("path");
 const cors = require("cors");
 
@@ -33,7 +34,9 @@ app.use("/api/address", addressRoutes);
 app.use("/api/products", productRoutes);
 app.use("/api/types", typeRoutes);
 app.use("/api/orders", orderRoutes);
+app.use("/api/dashboards", dashboardRoutes);
 app.use("/uploads", express.static(path.join(__dirname, "uploads")));
 
-const PORT = process.env.PORT || 3000;
+// const PORT = process.env.PORT || 3000;
+const PORT = process.env.PORT || 7789;
 app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
