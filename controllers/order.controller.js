@@ -22,7 +22,9 @@ exports.addOrder = async (req, res) => {
 
   try {
     let total = 0;
+    let totalPoints = 0; // เพิ่มตัวแปรสำหรับเก็บ point รวม
     const order_id = await generateOrderId();
+
     if (!member_id || !items) {
       return res.status(400).json({
         status: false,
@@ -35,29 +37,24 @@ exports.addOrder = async (req, res) => {
         "SELECT * FROM products WHERE id = ?",
         [item.product_id]
       );
-      //   if (!product || product.stock < item.quantity) {
+
       if (products.length === 0) {
         return res.status(400).json({
           status: false,
           msg: "สินค้าไม่พอหรือไม่พบสินค้า",
         });
-        // throw new Error("สินค้าไม่พอหรือไม่พบสินค้า");
       }
+
       const product = products[0];
       if (isNaN(product.price) || isNaN(item.quantity)) {
         return res.status(400).json({
           status: false,
           msg: "ราคาหรือจำนวนไม่ถูกต้อง",
         });
-        // throw new Error("สินค้าไม่พอหรือไม่พบสินค้า");
       }
 
       total += parseFloat(product.price) * parseInt(item.quantity);
-
-      //   await conn.query("UPDATE products SET stock = stock - ? WHERE id = ?", [
-      //     item.quantity,
-      //     item.product_id,
-      //   ]);
+      totalPoints += parseFloat(product.point || 0) * parseInt(item.quantity); // คำนวณ point รวม
     }
 
     const [orderResult] = await conn.query(
@@ -83,11 +80,20 @@ exports.addOrder = async (req, res) => {
       );
     }
 
+    // อัพเดท point ของ member หลังจาก INSERT orders เสร็จแล้ว
+    if (totalPoints > 0) {
+      await conn.query(
+        "UPDATE members SET point = COALESCE(point, 0) + ? WHERE id = ?",
+        [totalPoints, member_id]
+      );
+    }
+
     await conn.commit();
     res.status(201).json({
       status: true,
       msg: "เพิ่มออเดอร์สำเร็จ",
       order_id: orderResult.insertId,
+      total_points: totalPoints, // ส่ง point ที่ได้รับกลับไปด้วย
     });
   } catch (err) {
     console.log(err);
@@ -105,11 +111,12 @@ exports.getOrder = async (req, res) => {
   try {
     const { search, status } = req.query;
     let sql =
-      "SELECT od.order_id, od.member_id, od.total_price, od.user_id, od.status, od.created_at, mb.first_name, mb.family_name, mb.phone, us.first_name as user_first_name, us.family_name as user_family_name, (SELECT SUM(point) FROM order_items WHERE order_id = od.id) as point, (SELECT name_th FROM thai_provinces WHERE mb.province_id = id) as province FROM orders as od LEFT JOIN members as mb ON od.member_id = mb.id LEFT JOIN users as us ON od.user_id = us.id WHERE 1=1";
+      "SELECT od.id, od.order_id, od.member_id, od.total_price, od.user_id, od.status, od.created_at, mb.first_name, mb.family_name, mb.phone, us.first_name as user_first_name, us.family_name as user_family_name, (SELECT SUM(point) FROM order_items WHERE order_id = od.id) as point, (SELECT name_th FROM thai_provinces WHERE mb.province_id = id) as province FROM orders as od LEFT JOIN members as mb ON od.member_id = mb.id LEFT JOIN users as us ON od.user_id = us.id WHERE 1=1";
     const params = [];
 
     if (search) {
-      sql += " AND od.order_id LIKE ? OR mb.first_name  LIKE ? OR mb.family_name LIKE ?";
+      sql +=
+        " AND od.order_id LIKE ? OR mb.first_name  LIKE ? OR mb.family_name LIKE ?";
       params.push(`%${search}%`, `%${search}%`, `%${search}%`);
     }
 
@@ -130,6 +137,124 @@ exports.getOrder = async (req, res) => {
       status: false,
       message: "เกิดข้อผิดพลาดบางอย่าง โปรดลองใหม่ภายหลัง",
     });
+  }
+};
+
+exports.getOrderItems = async (req, res) => {
+  try {
+    const { order_id } = req.query;
+    if (!order_id) {
+      return res
+        .status(400)
+        .json({ status: false, msg: "กรุณาส่ง order id มาด้วย" });
+    }
+    let sql =
+      "SELECT oi.order_id, oi.product_id, oi.quantity, oi.price, oi.point, pd.name, pd.product_id, pd.image_url FROM order_items as oi LEFT JOIN products as pd ON oi.product_id = pd.id WHERE 1=1";
+    const params = [];
+
+    if (order_id) {
+      sql += " AND oi.order_id = ?";
+      params.push(`${order_id}`);
+    }
+
+    const [rows] = await db.query(sql, params);
+
+    const productsWithImageUrl = rows.map((product) => ({
+      ...product,
+      image_url: product.image_url
+        ? `${req.protocol}://${req.get("host")}/uploads/${product.image_url}`
+        : null,
+    }));
+
+    // const { data, pagination } = paginateQuery(req, rows);
+    res.status(200).json({ status: true, data: productsWithImageUrl });
+  } catch (error) {
+    console.log(error);
+    res.status(500).json({
+      status: false,
+      message: "เกิดข้อผิดพลาดบางอย่าง โปรดลองใหม่ภายหลัง",
+    });
+  }
+};
+
+exports.editOrderItems = async (req, res) => {
+  const { id, status } = req.body;
+
+  const conn = await db.getConnection();
+  await conn.beginTransaction();
+
+  try {
+    // เช็คสถานะปัจจุบันของ order
+    const [currentOrder] = await conn.query(
+      "SELECT status, member_id FROM orders WHERE id = ?",
+      [id]
+    );
+
+    if (currentOrder.length === 0) {
+      return res.status(404).json({
+        status: false,
+        msg: "ไม่พบคำสั่งซื้อ",
+      });
+    }
+
+    const currentStatus = currentOrder[0].status;
+    const memberId = currentOrder[0].member_id;
+
+    // อัพเดทสถานะ
+    await conn.query("UPDATE orders SET status = ? WHERE id = ?", [status, id]);
+
+    // ถ้าเปลี่ยนสถานะเป็น "cancelled" ให้หัก point
+    if (status === "cancelled") {
+      // คำนวณ point ทั้งหมดของ order นี้
+      const [orderItems] = await conn.query(
+        "SELECT SUM(point * quantity) as total_points FROM order_items WHERE order_id = ?",
+        [id]
+      );
+
+      const totalPoints = orderItems[0].total_points || 0;
+
+      if (totalPoints > 0) {
+        // หัก point จาก member
+        await conn.query(
+          "UPDATE members SET point = GREATEST(COALESCE(point, 0) - ?, 0) WHERE id = ?",
+          [totalPoints, memberId]
+        );
+      }
+    }
+
+    // ถ้าเปลี่ยนจาก "cancelled/ยกเลิก" เป็นสถานะอื่น ให้คืน point
+    else if (currentStatus === "cancelled" && status !== "cancelled") {
+      // คำนวณ point ทั้งหมดของ order นี้
+      const [orderItems] = await conn.query(
+        "SELECT SUM(point * quantity) as total_points FROM order_items WHERE order_id = ?",
+        [id]
+      );
+
+      const totalPoints = orderItems[0].total_points || 0;
+
+      if (totalPoints > 0) {
+        // คืน point ให้ member
+        await conn.query(
+          "UPDATE members SET point = COALESCE(point, 0) + ? WHERE id = ?",
+          [totalPoints, memberId]
+        );
+      }
+    }
+
+    await conn.commit();
+    res.status(200).json({
+      status: true,
+      msg: "อัปเดทสถานะคำสั่งซื้อสำเร็จ",
+    });
+  } catch (error) {
+    console.log(error);
+    await conn.rollback();
+    res.status(500).json({
+      status: false,
+      message: "เกิดข้อผิดพลาดบางอย่าง โปรดลองใหม่ภายหลัง",
+    });
+  } finally {
+    conn.release();
   }
 };
 
