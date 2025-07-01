@@ -7,11 +7,13 @@ const {
   delCustomer,
   getOrderCustomer,
   getOrderItemsCustomer,
+  getCustomers,
 } = require("../controllers/customer.controller");
 const authMiddleware = require("../middlewares/auth.middleware");
 
 router.post("/add-customer", authMiddleware, addCustomer);
 router.get("/list", authMiddleware, getCustomer);
+router.get("/", authMiddleware, getCustomers);
 router.put("/edit-customer", authMiddleware, editCustomer);
 router.delete("/delete", authMiddleware, delCustomer);
 router.get("/order", authMiddleware, getOrderCustomer);

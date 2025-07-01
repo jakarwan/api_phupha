@@ -92,6 +92,38 @@ exports.getCustomer = async (req, res) => {
   }
 };
 
+exports.getCustomers = async (req, res) => {
+  try {
+    const { search, province_id } = req.query;
+    let sql =
+      "SELECT mb.*, ap.name_th as amphure, tb.name_th as tambon, pv.name_th as province FROM members as mb LEFT JOIN thai_amphures as ap ON mb.amphure_id = ap.id LEFT JOIN thai_provinces as pv ON mb.province_id = pv.id LEFT JOIN thai_tambons as tb ON mb.tambon_id = tb.id WHERE 1=1";
+    const params = [];
+
+    if (search) {
+      sql +=
+        " AND mb.member_id LIKE ? OR mb.first_name LIKE ? OR mb.family_name LIKE ? OR mb.phone LIKE ?";
+      params.push(`%${search}%`, `%${search}%`, `%${search}%`, `%${search}%`);
+    }
+
+    if (province_id) {
+      sql += " AND pv.id = ? ";
+      params.push(province_id);
+    }
+
+    sql += " ORDER BY mb.created_at DESC";
+
+    const [rows] = await db.query(sql, params);
+    // const { data, pagination } = paginateQuery(req, rows);
+    res.status(200).json({ status: true, data: rows });
+  } catch (error) {
+    console.log(error);
+    res.status(500).json({
+      status: false,
+      message: "เกิดข้อผิดพลาดบางอย่าง โปรดลองใหม่ภายหลัง",
+    });
+  }
+};
+
 exports.editCustomer = async (req, res) => {
   const {
     id,

@@ -15,7 +15,7 @@ async function generateProductId() {
 }
 
 exports.addProduct = async (req, res) => {
-  const { name, description, price, point, stock, type_id } = req.body;
+  const { name, description, price, wholesale_price, point, stock, type_id } = req.body;
   //   const imagePath = req.file ? `/uploads/${req.file.filename}` : null;
   const image_url = req.file ? req.file.filename : null;
 
@@ -29,12 +29,13 @@ exports.addProduct = async (req, res) => {
     }
 
     await db.query(
-      "INSERT INTO products (product_id, name, description, price, point, stock, type_id, image_url) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+      "INSERT INTO products (product_id, name, description, price, wholesale_price, point, stock, type_id, image_url) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
       [
         product_id,
         name,
         description,
         price,
+        wholesale_price,
         point,
         stock || 0,
         type_id,
@@ -58,7 +59,7 @@ exports.getProduct = async (req, res) => {
   try {
     const { search, product_id } = req.query;
     let sql =
-      "SELECT id, product_id, name, description, price, point, stock, type_id, image_url FROM products WHERE 1=1";
+      "SELECT id, product_id, name, description, price, wholesale_price, point, stock, type_id, image_url FROM products WHERE 1=1";
     const params = [];
 
     if (search) {
@@ -90,7 +91,7 @@ exports.getProduct = async (req, res) => {
 };
 
 exports.editProduct = async (req, res) => {
-  const { id, name, description, price, point, stock, type_id } = req.body;
+  const { id, name, description, price, wholesale_price, point, stock, type_id } = req.body;
   
   try {
     if (!id) {
@@ -139,11 +140,12 @@ exports.editProduct = async (req, res) => {
     const numPrice = parseFloat(price);
     
     const result = await db.query(
-      "UPDATE products SET name = ?, description = ?, price = ?, point = ?, stock = ?, type_id = ?, image_url = ? WHERE id = ?",
+      "UPDATE products SET name = ?, description = ?, price = ?, wholesale_price = ?, point = ?, stock = ?, type_id = ?, image_url = ? WHERE id = ?",
       [
         name,
         description || null,
         numPrice,
+        wholesale_price,
         point ? parseInt(point) : 0,
         stock ? parseInt(stock) : 0,
         type_id,

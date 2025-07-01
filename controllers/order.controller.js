@@ -53,7 +53,7 @@ exports.addOrder = async (req, res) => {
         });
       }
 
-      total += parseFloat(product.price) * parseInt(item.quantity);
+      total += parseFloat(item.wholesale_price) * parseInt(item.quantity);
       totalPoints += parseFloat(product.point || 0) * parseInt(item.quantity); // คำนวณ point รวม
     }
 
@@ -69,12 +69,13 @@ exports.addOrder = async (req, res) => {
       );
       const product = products[0];
       await conn.query(
-        "INSERT INTO order_items (order_id, product_id, quantity, price, point) VALUES (?, ?, ?, ?, ?)",
+        "INSERT INTO order_items (order_id, product_id, quantity, price, wholesale_price, point) VALUES (?, ?, ?, ?, ?, ?)",
         [
           orderResult.insertId,
           item.product_id,
           item.quantity,
           product.price,
+          item.wholesale_price,
           product.point,
         ]
       );
@@ -149,7 +150,7 @@ exports.getOrderItems = async (req, res) => {
         .json({ status: false, msg: "กรุณาส่ง order id มาด้วย" });
     }
     let sql =
-      "SELECT oi.order_id, oi.product_id, oi.quantity, oi.price, oi.point, pd.name, pd.product_id, pd.image_url FROM order_items as oi LEFT JOIN products as pd ON oi.product_id = pd.id WHERE 1=1";
+      "SELECT oi.order_id, oi.product_id, oi.quantity, oi.wholesale_price as wholesale_price, oi.point, pd.name, pd.product_id, pd.wholesale_price as min_price, pd.price as max_price, pd.image_url FROM order_items as oi LEFT JOIN products as pd ON oi.product_id = pd.id WHERE 1=1";
     const params = [];
 
     if (order_id) {
