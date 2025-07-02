@@ -68,6 +68,7 @@ exports.addOrder = async (req, res) => {
         [item.product_id]
       );
       const product = products[0];
+      let totalPoint = product.point * parseInt(item.quantity)
       await conn.query(
         "INSERT INTO order_items (order_id, product_id, quantity, price, wholesale_price, point) VALUES (?, ?, ?, ?, ?, ?)",
         [
@@ -76,7 +77,7 @@ exports.addOrder = async (req, res) => {
           item.quantity,
           product.price,
           item.wholesale_price,
-          product.point,
+          totalPoint,
         ]
       );
     }
@@ -150,7 +151,7 @@ exports.getOrderItems = async (req, res) => {
         .json({ status: false, msg: "กรุณาส่ง order id มาด้วย" });
     }
     let sql =
-      "SELECT oi.order_id, oi.product_id, oi.quantity, oi.wholesale_price as wholesale_price, oi.point, pd.name, pd.product_id, pd.wholesale_price as min_price, pd.price as max_price, pd.image_url FROM order_items as oi LEFT JOIN products as pd ON oi.product_id = pd.id WHERE 1=1";
+      "SELECT oi.order_id, oi.product_id, oi.quantity, oi.wholesale_price as wholesale_price, oi.point, pd.name, pd.product_id, pd.wholesale_price as min_price, pd.price as max_price, pd.image_url, pd.point as product_point FROM order_items as oi LEFT JOIN products as pd ON oi.product_id = pd.id WHERE 1=1";
     const params = [];
 
     if (order_id) {

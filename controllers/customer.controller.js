@@ -205,37 +205,37 @@ exports.getOrderCustomer = async (req, res) => {
 
 exports.getOrderItemsCustomer = async (req, res) => {
   try {
-    const { order_id } = req.query;
-    if (!order_id) {
-      return res
-        .status(400)
-        .json({ status: false, msg: "กรุณาส่ง order id มาด้วย" });
+      const { order_id } = req.query;
+      if (!order_id) {
+        return res
+          .status(400)
+          .json({ status: false, msg: "กรุณาส่ง order id มาด้วย" });
+      }
+      let sql =
+        "SELECT oi.order_id, oi.product_id, oi.quantity, oi.wholesale_price as wholesale_price, oi.point, pd.name, pd.product_id, pd.wholesale_price as min_price, pd.price as max_price, pd.image_url, pd.point as product_point FROM order_items as oi LEFT JOIN products as pd ON oi.product_id = pd.id WHERE 1=1";
+      const params = [];
+  
+      if (order_id) {
+        sql += " AND oi.order_id = ?";
+        params.push(`${order_id}`);
+      }
+  
+      const [rows] = await db.query(sql, params);
+  
+      const productsWithImageUrl = rows.map((product) => ({
+        ...product,
+        image_url: product.image_url
+          ? `${req.protocol}://${req.get("host")}/uploads/${product.image_url}`
+          : null,
+      }));
+  
+      // const { data, pagination } = paginateQuery(req, rows);
+      res.status(200).json({ status: true, data: productsWithImageUrl });
+    } catch (error) {
+      console.log(error);
+      res.status(500).json({
+        status: false,
+        message: "เกิดข้อผิดพลาดบางอย่าง โปรดลองใหม่ภายหลัง",
+      });
     }
-    let sql =
-      "SELECT oi.order_id, oi.product_id, oi.quantity, oi.price, oi.point, pd.name, pd.product_id, pd.image_url FROM order_items as oi LEFT JOIN products as pd ON oi.product_id = pd.id WHERE 1=1";
-    const params = [];
-
-    if (order_id) {
-      sql += " AND oi.order_id = ?";
-      params.push(`${order_id}`);
-    }
-
-    const [rows] = await db.query(sql, params);
-
-    const productsWithImageUrl = rows.map((product) => ({
-      ...product,
-      image_url: product.image_url
-        ? `${req.protocol}://${req.get("host")}/uploads/${product.image_url}`
-        : null,
-    }));
-
-    // const { data, pagination } = paginateQuery(req, rows);
-    res.status(200).json({ status: true, data: productsWithImageUrl });
-  } catch (error) {
-    console.log(error);
-    res.status(500).json({
-      status: false,
-      message: "เกิดข้อผิดพลาดบางอย่าง โปรดลองใหม่ภายหลัง",
-    });
-  }
 };
