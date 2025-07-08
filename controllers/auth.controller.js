@@ -3,7 +3,7 @@ const jwt = require("jsonwebtoken");
 const bcrypt = require("bcrypt");
 
 exports.register = async (req, res) => {
-  const { username, password } = req.body;
+  const { username, password, first_name, family_name, phone } = req.body;
 
   const [userExists] = await db.query(
     "SELECT * FROM users WHERE username = ?",
@@ -15,10 +15,10 @@ exports.register = async (req, res) => {
       .json({ status: false, msg: "มีชื่อผู้ใช้นี้ในระบบแล้ว" });
 
   const hash = await bcrypt.hash(password, 10);
-  await db.query("INSERT INTO users (username, password) VALUES (?, ?)", [
-    username,
-    hash,
-  ]);
+  await db.query(
+    "INSERT INTO users (username, password, first_name, family_name, phone) VALUES (?, ?, ?, ?, ?)",
+    [username, hash, first_name, family_name, phone]
+  );
 
   res.status(201).json({ status: true, msg: "User registered" });
 };
@@ -30,7 +30,9 @@ exports.login = async (req, res) => {
     username,
   ]);
   if (rows.length === 0)
-    return res.status(400).json({ status: false, msg: "ชื่อผู้ใช้หรือรหัสผ่านไม่ถูกต้อง" });
+    return res
+      .status(400)
+      .json({ status: false, msg: "ชื่อผู้ใช้หรือรหัสผ่านไม่ถูกต้อง" });
 
   const user = rows[0];
 
